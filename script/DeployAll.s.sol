@@ -29,6 +29,7 @@ contract DeployAll is Script {
 
     function run() external returns (DeploymentResult memory) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployerAddress = vm.addr(deployerPrivateKey);
         vm.startBroadcast(deployerPrivateKey);
 
         uint256 chainId = block.chainid;
@@ -38,7 +39,7 @@ contract DeployAll is Script {
 
         if (chainId == 31337) {
             // Local deployment with mocks
-            result = deployLocal();
+            result = deployLocal(deployerAddress);
         } else if (chainId == 1 || chainId == 11155111) {
             // Ethereum mainnet or Sepolia
             result = deployEthereum();
@@ -55,7 +56,7 @@ contract DeployAll is Script {
         return result;
     }
 
-    function deployLocal() internal returns (DeploymentResult memory) {
+    function deployLocal(address deployerAddress) internal returns (DeploymentResult memory) {
         console2.log("\n=== Deploying Local Test Environment ===");
 
         // Deploy mocks
@@ -124,7 +125,7 @@ contract DeployAll is Script {
             "Flatcoin",
             "FLAT",
             address(endpoint),
-            msg.sender
+            deployerAddress
         );
         console2.log("SimpleFlatcoinOFT:", address(flatcoin));
 
@@ -138,9 +139,9 @@ contract DeployAll is Script {
         flatcoin.setCoreContract(address(flatcoinCore));
 
         // Setup initial liquidity for testing
-        usdc.mint(msg.sender, 10000000 * 10**6); // 10M USDC
-        usdt.mint(msg.sender, 10000000 * 10**6); // 10M USDT
-        treasury.mint(msg.sender, 1000000 * 10**18); // 1M treasury tokens
+        usdc.mint(deployerAddress, 10000000 * 10**6); // 10M USDC
+        usdt.mint(deployerAddress, 10000000 * 10**6); // 10M USDT
+        treasury.mint(deployerAddress, 1000000 * 10**18); // 1M treasury tokens
 
         // Add initial reserves to flatcoin
         usdt.approve(address(flatcoinCore), 100000 * 10**6);
@@ -196,11 +197,12 @@ contract DeployAll is Script {
         }
 
         // Deploy Flatcoin contracts
+        address deployer = msg.sender;
         SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
             "Flatcoin",
             "FLAT",
             endpoint,
-            msg.sender
+            deployer
         );
         console2.log("SimpleFlatcoinOFT:", address(flatcoin));
 
@@ -298,11 +300,12 @@ contract DeployAll is Script {
         }
 
         // Deploy Flatcoin contracts
+        address deployer = msg.sender;
         SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
             "Flatcoin",
             "FLAT",
             endpoint,
-            msg.sender
+            deployer
         );
         console2.log("SimpleFlatcoinOFT:", address(flatcoin));
 
