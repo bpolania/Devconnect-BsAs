@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 import {Script, console2} from "forge-std/Script.sol";
 import {TokenizedTreasury} from "../contracts/TokenizedTreasury.sol";
 import {TreasuryMarketplace} from "../contracts/TreasuryMarketplace.sol";
-import {TreasuryBridgeOrchestrator} from "../contracts/TreasuryBridgeOrchestrator.sol";
+import {TreasuryBridgeInitiator} from "../contracts/TreasuryBridgeInitiator.sol";
 import {UsdcBridgeSender} from "../contracts/UsdcBridgeSender.sol";
 import {Config} from "../contracts/Config.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
@@ -90,23 +90,23 @@ contract DeployTreasury is Script {
         );
         console2.log("TreasuryMarketplace deployed at:", address(marketplace));
 
-        // Deploy TreasuryBridgeOrchestrator if bridge sender exists
+        // Deploy TreasuryBridgeInitiator if bridge sender exists
         if (bridgeSenderAddress != address(0)) {
-            console2.log("Deploying TreasuryBridgeOrchestrator...");
+            console2.log("Deploying TreasuryBridgeInitiator...");
 
-            TreasuryBridgeOrchestrator orchestrator = new TreasuryBridgeOrchestrator(
+            TreasuryBridgeInitiator initiator = new TreasuryBridgeInitiator(
                 address(marketplace),
                 bridgeSenderAddress,
                 usdcAddress,
                 address(treasury)
             );
-            console2.log("TreasuryBridgeOrchestrator deployed at:", address(orchestrator));
+            console2.log("TreasuryBridgeInitiator deployed at:", address(initiator));
 
             // Initial configuration
             console2.log("\n=== Configuration Complete ===");
             console2.log("Treasury Token:", address(treasury));
             console2.log("Marketplace:", address(marketplace));
-            console2.log("Orchestrator:", address(orchestrator));
+            console2.log("Initiator:", address(initiator));
             console2.log("USDC:", usdcAddress);
             console2.log("Bridge Sender:", bridgeSenderAddress);
         } else {

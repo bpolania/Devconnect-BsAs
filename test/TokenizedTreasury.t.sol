@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {TokenizedTreasury} from "../contracts/TokenizedTreasury.sol";
 import {TreasuryMarketplace} from "../contracts/TreasuryMarketplace.sol";
-import {TreasuryBridgeOrchestrator} from "../contracts/TreasuryBridgeOrchestrator.sol";
+import {TreasuryBridgeInitiator} from "../contracts/TreasuryBridgeInitiator.sol";
 import {UsdcBridgeSender} from "../contracts/UsdcBridgeSender.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockStargate} from "./mocks/MockStargate.sol";
@@ -13,7 +13,7 @@ import {Config} from "../contracts/Config.sol";
 contract TokenizedTreasuryTest is Test {
     TokenizedTreasury public treasury;
     TreasuryMarketplace public marketplace;
-    TreasuryBridgeOrchestrator public orchestrator;
+    TreasuryBridgeInitiator public initiator;
     UsdcBridgeSender public bridgeSender;
     MockERC20 public usdc;
     MockStargate public stargate;
@@ -67,8 +67,8 @@ contract TokenizedTreasuryTest is Test {
         // Set composer address for Ethereum
         bridgeSender.setComposer(Config.ETHEREUM_EID, address(0x9999));
 
-        // Deploy orchestrator
-        orchestrator = new TreasuryBridgeOrchestrator(
+        // Deploy initiator
+        initiator = new TreasuryBridgeInitiator(
             address(marketplace),
             address(bridgeSender),
             address(usdc),
@@ -147,83 +147,41 @@ contract TokenizedTreasuryTest is Test {
         assertLt(expectedOutput, INITIAL_USDC_LIQUIDITY);
     }
 
-    function testOrchestratorSellAndBridge() public {
+    function testInitiatorSellAndBridge() public {
         uint256 treasuryToSell = 100 * 10**18;
         uint256 minUsdcOut = 90 * 10**6;
         address ethereumRecipient = address(0x3333);
+        bytes memory treasuryData = abi.encode("UST2Y", block.timestamp);
 
         vm.startPrank(alice);
 
-        // Approve orchestrator
-        treasury.approve(address(orchestrator), treasuryToSell);
+        // Approve initiator
+        treasury.approve(address(initiator), treasuryToSell);
 
         // Quote the operation
-        (uint256 expectedUsdc, uint256 bridgeFee) = orchestrator.quoteSellAndBridge(
-            treasuryToSell,
-            true, // Bridge all proceeds
-            0
-        );
+        (uint256 expectedUsdc, uint256 bridgeFee) = initiator.quoteSellAndBridge(treasuryToSell);
 
-        // Execute sell and bridge
-        (uint256 usdcReceived, uint256 usdcBridged, bytes32 guid) = orchestrator.sellAndBridge{value: bridgeFee}(
+        // Execute sell and bridge with composer
+        bytes32 guid = initiator.sellAndBridgeWithComposer{value: bridgeFee}(
             treasuryToSell,
             minUsdcOut,
             ethereumRecipient,
-            true, // Bridge all proceeds
-            0
+            treasuryData
         );
 
-        assertEq(usdcReceived, usdcBridged);
-        assertGt(usdcReceived, minUsdcOut);
+        assertGt(expectedUsdc, minUsdcOut);
         assertEq(guid, keccak256(abi.encodePacked(block.timestamp, uint256(1))));
 
         vm.stopPrank();
     }
 
-    function testOrchestratorPartialBridge() public {
-        uint256 treasuryToSell = 100 * 10**18;
-        uint256 minUsdcOut = 90 * 10**6;
-        uint256 bridgeAmount = 50 * 10**6; // Bridge only half
-        address ethereumRecipient = address(0x3333);
-
-        vm.startPrank(alice);
-
-        treasury.approve(address(orchestrator), treasuryToSell);
-
-        // Quote
-        (uint256 expectedUsdc, uint256 bridgeFee) = orchestrator.quoteSellAndBridge(
-            treasuryToSell,
-            false, // Don't bridge all
-            bridgeAmount
-        );
-
-        uint256 usdcBefore = usdc.balanceOf(alice);
-
-        // Execute
-        (uint256 usdcReceived, uint256 usdcBridged, ) = orchestrator.sellAndBridge{value: bridgeFee}(
-            treasuryToSell,
-            minUsdcOut,
-            ethereumRecipient,
-            false, // Don't bridge all
-            bridgeAmount
-        );
-
-        uint256 usdcAfter = usdc.balanceOf(alice);
-
-        assertEq(usdcBridged, bridgeAmount);
-        assertGt(usdcReceived, usdcBridged);
-        assertEq(usdcAfter - usdcBefore, usdcReceived - usdcBridged); // Remainder returned
-
-        vm.stopPrank();
-    }
-
-    function testDirectBridge() public {
+    function testInitiatorSimpleBridge() public {
         uint256 bridgeAmount = 100 * 10**6;
         address ethereumRecipient = address(0x3333);
 
         vm.startPrank(alice);
 
-        usdc.approve(address(orchestrator), bridgeAmount);
+        usdc.approve(address(initiator), bridgeAmount);
 
         // Get bridge fee
         (uint256 nativeFee, ) = bridgeSender.quoteBridge(
@@ -232,8 +190,8 @@ contract TokenizedTreasuryTest is Test {
             ethereumRecipient
         );
 
-        // Execute direct bridge
-        bytes32 guid = orchestrator.bridgeUsdc{value: nativeFee}(
+        // Execute simple bridge
+        bytes32 guid = initiator.bridgeSimple{value: nativeFee}(
             bridgeAmount,
             ethereumRecipient
         );
@@ -243,36 +201,31 @@ contract TokenizedTreasuryTest is Test {
         vm.stopPrank();
     }
 
+
     function testUserStatistics() public {
         uint256 treasuryToSell = 100 * 10**18;
         address ethereumRecipient = address(0x3333);
+        bytes memory treasuryData = abi.encode("UST2Y", block.timestamp);
 
         vm.startPrank(alice);
-        treasury.approve(address(orchestrator), treasuryToSell);
+        treasury.approve(address(initiator), treasuryToSell);
 
-        (uint256 expectedUsdc, uint256 bridgeFee) = orchestrator.quoteSellAndBridge(
-            treasuryToSell,
-            true,
-            0
-        );
+        (uint256 expectedUsdc, uint256 bridgeFee) = initiator.quoteSellAndBridge(treasuryToSell);
 
-        orchestrator.sellAndBridge{value: bridgeFee}(
+        initiator.sellAndBridgeWithComposer{value: bridgeFee}(
             treasuryToSell,
             90 * 10**6,
             ethereumRecipient,
-            true,
-            0
+            treasuryData
         );
 
         vm.stopPrank();
 
         // Check statistics
-        (uint256 treasurySold, uint256 usdcBridged, uint256 txCount) = orchestrator.getUserStats(alice);
+        (uint256 treasurySold, uint256 usdcBridged) = initiator.getUserStats(alice);
 
         assertEq(treasurySold, treasuryToSell);
         assertGt(usdcBridged, 0);
-        assertEq(txCount, 1);
-        assertEq(orchestrator.totalTransactions(), 1);
     }
 
     function testAccruedInterest() public {
