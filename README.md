@@ -1,152 +1,370 @@
-# LayerZero v2 + Stargate v2 USDC Bridge
+# Cross-Chain Treasury and USDC Bridge
 
-A production-oriented implementation of USDC bridging between Ethereum and Arbitrum using LayerZero v2 and Stargate v2 with the Composer pattern.
+A production-ready implementation of tokenized treasury notes on Arbitrum with cross-chain USDC bridging to Ethereum using LayerZero v2 and Stargate v2's Composer pattern.
 
-## Architecture Overview
+## Overview
 
-This project implements a composable cross-chain USDC bridge using three main components. The UsdcBridgeSender contract initiates bridge operations on the source chain, Stargate v2 handles the actual token bridging between chains, and the UsdcComposer contract on the destination chain receives composed messages and delivers the bridged USDC to the final recipient.
+This project enables users to:
+1. **Trade tokenized US Treasury notes** on Arbitrum through an automated market maker
+2. **Sell treasury tokens for USDC** with instant liquidity
+3. **Bridge USDC cross-chain** between Arbitrum and Ethereum seamlessly
+4. **Compose complex operations** like selling treasuries and bridging in one transaction
 
-The system uses LayerZero v2's compose functionality, which allows for programmable actions after bridging. When a user initiates a bridge, the sender contract packages both the USDC amount and the recipient's address into a composed message. Stargate bridges the tokens and triggers a composed call on the destination chain. The composer contract then decodes the message and transfers the USDC to the intended recipient.
+## Architecture
 
-## Core Flows
+### Core Components
 
-### Arbitrum to Ethereum Bridge Flow
+- **TokenizedTreasury**: ERC20 representation of US Treasury notes with compliance features (blacklisting, pausing, authorized minting)
+- **TreasuryMarketplace**: Constant product AMM for trading treasury tokens against USDC
+- **TreasuryBridgeInitiator**: Orchestrates treasury sales and initiates cross-chain USDC bridging on Arbitrum
+- **CrossChainComposer**: Receives and processes composed messages on the destination chain
+- **UsdcBridgeSender**: Initiates USDC bridging operations via Stargate v2
 
-The process begins when a user calls bridgeToEthereum on the UsdcBridgeSender contract deployed on Arbitrum, specifying the amount of USDC and the recipient address on Ethereum. The sender contract transfers USDC from the user, approves Stargate to spend it, and constructs a composed message containing the recipient's address. It then calls Stargate's sendToken function with the Ethereum endpoint ID, the Ethereum composer's address, and the composed message.
+### Message Types
 
-Stargate bridges the USDC to Ethereum and credits it to the Ethereum Composer contract. The LayerZero endpoint on Ethereum then triggers the lzCompose function on the composer. The composer validates that the call came from the trusted endpoint and Stargate, decodes the message to extract the amount and recipient, and transfers the USDC from itself to the final recipient.
-
-### Ethereum to Arbitrum Bridge Flow
-
-This flow mirrors the Arbitrum to Ethereum process but in reverse. The user initiates the bridge from Ethereum, Stargate handles the cross-chain transfer to Arbitrum, and the Arbitrum composer delivers the USDC to the recipient. The same security checks and message encoding patterns apply.
+The system supports three types of composed operations:
+- `SIMPLE_TRANSFER`: Direct USDC bridging between chains
+- `TREASURY_SALE`: Sell treasury tokens and bridge proceeds
+- `VAULT_DEPOSIT`: Bridge USDC for vault operations (extensible)
 
 ## Project Structure
 
 ```
 contracts/
-├── Config.sol                 # Network configurations and constants
-├── UsdcComposer.sol          # Composer contract for receiving bridged USDC
-├── UsdcBridgeSender.sol      # Sender contract for initiating bridges
-├── interfaces/               # LayerZero and Stargate interfaces
+├── Config.sol                    # Network configurations and constants
+├── TokenizedTreasury.sol         # ERC20 treasury token with compliance
+├── TreasuryMarketplace.sol       # AMM for treasury/USDC trading
+├── TreasuryBridgeInitiator.sol   # Orchestrates sales and bridging
+├── CrossChainComposer.sol        # Processes composed messages
+├── UsdcBridgeSender.sol          # Initiates cross-chain bridging
+├── interfaces/                   # External protocol interfaces
 │   ├── ILayerZero.sol
 │   └── IStargate.sol
-└── libraries/                # Utility libraries
-    ├── MessageCodec.sol      # Message encoding/decoding
-    └── OptionsBuilder.sol    # LayerZero options construction
+└── libraries/                    # Utility libraries
+    ├── MessageCodec.sol          # Message encoding/decoding
+    └── OptionsBuilder.sol        # LayerZero options construction
 
 script/
-├── Deploy.s.sol              # Deployment script for all networks
-└── BridgeExample.s.sol       # Example bridge execution script
+├── DeployAll.s.sol               # Comprehensive deployment script
+├── DeployTreasury.s.sol          # Treasury-specific deployment
+├── Deploy.s.sol                  # Bridge infrastructure deployment
+└── BridgeExample.s.sol           # Example usage scripts
 
 test/
-├── UsdcComposer.t.sol        # Unit tests for composer
-└── mocks/                    # Mock contracts for testing
+├── TokenizedTreasury.t.sol       # Treasury and marketplace tests
+├── CrossChainComposer.t.sol      # Composer pattern tests
+└── mocks/                        # Mock contracts for testing
 ```
 
-## Setup and Installation
-
-First, install Foundry if you haven't already by following the instructions at https://book.getfoundry.sh/getting-started/installation. Clone this repository and install dependencies:
+## Installation
 
 ```bash
+# Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Clone and setup
 git clone <repository>
 cd <repository>
-forge install OpenZeppelin/openzeppelin-contracts
-forge install foundry-rs/forge-std
+forge install
 ```
 
 ## Configuration
 
-The project uses two types of configuration:
-
-### Config.sol (Public Constants)
-Contains public on-chain constants that are the same for all users:
-- LayerZero endpoint addresses and IDs
-- Stargate contract addresses
-- USDC token addresses
-- Gas limits and pool IDs
-
-Update these in `contracts/Config.sol` with actual deployed addresses from the official LayerZero v2 documentation at https://docs.layerzero.network/v2 and Stargate v2 documentation at https://stargateprotocol.gitbook.io/stargate.
-
-### .env File (Private Secrets)
-Contains user-specific private data that should never be committed to version control. Create it from the example:
+### Environment Variables (.env)
 
 ```bash
 cp .env.example .env
-# Then edit .env and replace placeholders with your actual values
 ```
 
 Required variables:
-- `PRIVATE_KEY` - Your wallet private key (without 0x prefix)
-- `ETH_RPC_URL` - Ethereum RPC endpoint
-- `ARBITRUM_RPC_URL` - Arbitrum RPC endpoint
+- `PRIVATE_KEY`: Deployer wallet private key
+- `ARBITRUM_RPC_URL`: Arbitrum RPC endpoint
+- `ETH_RPC_URL`: Ethereum RPC endpoint
 
-## Testing
+Optional for treasury deployment:
+- `BRIDGE_SENDER_ADDRESS`: Existing bridge sender (if already deployed)
+- `TREASURY_ADDRESS`: Existing treasury token address
+- `MARKETPLACE_ADDRESS`: Existing marketplace address
 
-Run the test suite to verify the composer logic and message decoding:
+### Network Configuration
 
-```bash
-forge test -vvv
-```
-
-For gas reporting:
-
-```bash
-forge test --gas-report
-```
+Update `contracts/Config.sol` with the latest addresses from:
+- [LayerZero v2 Endpoints](https://docs.layerzero.network/v2)
+- [Stargate v2 Contracts](https://stargateprotocol.gitbook.io/stargate)
 
 ## Deployment
 
-Deploy to a local test environment:
+### Local Development
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url local --broadcast
+# Start local Anvil node
+anvil --accounts 3 --balance 10000
+
+# Deploy all contracts locally
+forge script script/DeployAll.s.sol:DeployAll \
+  --rpc-url http://localhost:8545 \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --broadcast
 ```
 
-Deploy to Ethereum mainnet:
+### Testnet Deployment (Sepolia)
+
+#### Prerequisites
+1. **Get Testnet ETH**:
+   - Ethereum Sepolia: https://sepoliafaucet.com/
+   - Arbitrum Sepolia: https://faucets.chain.link/arbitrum-sepolia
+
+2. **Get Testnet USDC**:
+   - Ethereum Sepolia USDC: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+   - Arbitrum Sepolia USDC: `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`
+   - Use Circle's testnet faucet: https://faucet.circle.com/
+
+3. **Configure RPC URLs** in `.env`:
+   ```bash
+   ETH_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
+   ARBITRUM_RPC_URL=https://arbitrum-sepolia.infura.io/v3/YOUR_INFURA_KEY
+   ```
+
+#### Step 1: Deploy to Arbitrum Sepolia
+```bash
+# Deploy treasury contracts and bridge infrastructure
+forge script script/DeployAll.s.sol:DeployAll \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ARBISCAN_API_KEY \
+  --chain-id 421614 \
+  -vvvv
+
+# Save the deployed addresses:
+# - CrossChainComposer: 0x...
+# - UsdcBridgeSender: 0x...
+# - TokenizedTreasury: 0x...
+# - TreasuryMarketplace: 0x...
+# - TreasuryBridgeInitiator: 0x...
+```
+
+#### Step 2: Deploy to Ethereum Sepolia
+```bash
+# Deploy bridge infrastructure only (no treasury contracts)
+forge script script/DeployAll.s.sol:DeployAll \
+  --rpc-url $ETH_RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --chain-id 11155111 \
+  -vvvv
+
+# Save the deployed addresses:
+# - CrossChainComposer: 0x...
+# - UsdcBridgeSender: 0x...
+```
+
+#### Step 3: Configure Cross-Chain Connection
+```bash
+# Set composer addresses on both chains
+# On Arbitrum Sepolia - point to Ethereum composer
+cast send <ARBITRUM_SENDER_ADDRESS> \
+  "setComposer(uint32,address)" \
+  40161 <ETHEREUM_COMPOSER_ADDRESS> \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# On Ethereum Sepolia - point to Arbitrum composer
+cast send <ETHEREUM_SENDER_ADDRESS> \
+  "setComposer(uint32,address)" \
+  40231 <ARBITRUM_COMPOSER_ADDRESS> \
+  --rpc-url $ETH_RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+#### Step 4: Initialize Treasury Market (Arbitrum only)
+```bash
+# Mint initial treasury supply
+cast send <TREASURY_ADDRESS> \
+  "mint(address,uint256)" \
+  $YOUR_ADDRESS 1000000000000000000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Approve marketplace for treasury tokens
+cast send <TREASURY_ADDRESS> \
+  "approve(address,uint256)" \
+  <MARKETPLACE_ADDRESS> 500000000000000000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Approve marketplace for USDC
+cast send <USDC_ADDRESS> \
+  "approve(address,uint256)" \
+  <MARKETPLACE_ADDRESS> 500000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Add liquidity to marketplace
+cast send <MARKETPLACE_ADDRESS> \
+  "addLiquidity(uint256,uint256)" \
+  100000000000000000000000 100000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+### Mainnet Deployment
+
+For mainnet deployment, follow the same steps but:
+1. Use mainnet RPC URLs and chain IDs (Ethereum: 1, Arbitrum: 42161)
+2. Ensure sufficient ETH for gas fees
+3. Use real USDC addresses from Config.sol
+4. Consider using a hardware wallet or multisig for deployment
+5. Test thoroughly on testnet first
+6. Audit contracts before mainnet deployment
+
+### Verification & Monitoring
+
+#### Verify Contracts on Block Explorers
+```bash
+# Verify on Arbiscan (Arbitrum Sepolia)
+forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> \
+  --chain-id 421614 \
+  --etherscan-api-key $ARBISCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(...)" ...)
+
+# Verify on Etherscan (Ethereum Sepolia)
+forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> \
+  --chain-id 11155111 \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(...)" ...)
+```
+
+#### Monitor Your Deployment
+1. **Track Bridge Transactions**:
+   - LayerZero Scan: https://testnet.layerzeroscan.com/
+   - Search by transaction GUID returned from bridge operations
+
+2. **Check Contract State**:
+   ```bash
+   # Check treasury token supply
+   cast call <TREASURY_ADDRESS> "totalSupply()" --rpc-url $ARBITRUM_RPC_URL | cast --to-dec
+
+   # Check marketplace liquidity
+   cast call <MARKETPLACE_ADDRESS> "treasuryReserve()" --rpc-url $ARBITRUM_RPC_URL | cast --to-dec
+   cast call <MARKETPLACE_ADDRESS> "usdcReserve()" --rpc-url $ARBITRUM_RPC_URL | cast --to-dec
+
+   # Check bridge sender composer settings
+   cast call <SENDER_ADDRESS> "composers(uint32)" 40161 --rpc-url $ARBITRUM_RPC_URL
+   ```
+
+3. **Test Bridge Operations**:
+   ```bash
+   # Quote bridge fee
+   cast call <SENDER_ADDRESS> \
+     "quoteBridge(uint32,uint256,address)" \
+     40161 1000000 <RECIPIENT_ADDRESS> \
+     --rpc-url $ARBITRUM_RPC_URL
+   ```
+
+## Usage
+
+### Trading Treasury Tokens
+
+```solidity
+// Sell treasury tokens for USDC
+uint256 usdcReceived = marketplace.sellTreasury(treasuryAmount, minUsdcOut);
+
+// Buy treasury tokens with USDC
+uint256 treasuryReceived = marketplace.buyTreasury(usdcAmount, minTreasuryOut);
+
+// Add liquidity to the pool
+marketplace.addLiquidity(treasuryAmount, usdcAmount);
+```
+
+### Sell Treasury and Bridge to Ethereum
+
+```solidity
+// Quote the operation
+(uint256 expectedUsdc, uint256 bridgeFee) = initiator.quoteSellAndBridge(treasuryAmount);
+
+// Execute: Sell treasury tokens and bridge USDC to Ethereum
+bytes32 guid = initiator.sellAndBridgeWithComposer{value: bridgeFee}(
+    treasuryAmount,           // Amount of treasury tokens to sell
+    minUsdcOut,               // Minimum USDC to receive
+    ethereumRecipient,        // Recipient address on Ethereum
+    treasuryMetadata          // Additional data for composer
+);
+```
+
+### Simple USDC Bridging
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url ethereum --broadcast --verify
+# Bridge USDC from Arbitrum to Ethereum
+SENDER_CONTRACT=0x... RECEIVER_ADDRESS=0x... \
+BRIDGE_AMOUNT=1000000 DESTINATION=ethereum \
+forge script script/BridgeExample.s.sol --rpc-url arbitrum --broadcast
 ```
 
-Deploy to Arbitrum:
+## Testing
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url arbitrum --broadcast --verify
+# Run all tests
+forge test
+
+# Run with gas reporting
+forge test --gas-report
+
+# Run specific test suite
+forge test --match-contract TokenizedTreasury -vvv
 ```
 
-After deployment, you need to set the composer addresses on each sender contract. On Ethereum, set the Arbitrum composer address, and on Arbitrum, set the Ethereum composer address.
+## Treasury Token Features
 
-## Usage Example
+### Compliance
+- **Blacklist Management**: Block specific addresses from transfers
+- **Pause Mechanism**: Emergency pause for all transfers
+- **Authorized Minting**: Only designated addresses can mint new tokens
 
-To bridge USDC from Arbitrum to Ethereum:
+### Financial Features
+- **Coupon Rate**: Fixed interest rate (e.g., 4.5% annually)
+- **Maturity Date**: Token expiration for redemption
+- **CUSIP Identifier**: Standard securities identification
+- **Interest Calculation**: Accrued interest based on holding period
 
-```bash
-# First, quote the bridge fee
-SENDER_CONTRACT=0x... RECEIVER_ADDRESS=0x... BRIDGE_AMOUNT=1000000 DESTINATION=ethereum forge script script/BridgeExample.s.sol:BridgeQuote --rpc-url arbitrum
+## Marketplace Mechanics
 
-# Then execute the bridge
-SENDER_CONTRACT=0x... RECEIVER_ADDRESS=0x... BRIDGE_AMOUNT=1000000 DESTINATION=ethereum forge script script/BridgeExample.s.sol --rpc-url arbitrum --broadcast
-```
+The TreasuryMarketplace uses a constant product AMM (x * y = k):
+- **No Slippage Protection**: Built-in minimum output requirements
+- **Fee Collection**: 0.3% trading fee to liquidity providers
+- **Price Discovery**: Automatic price adjustment based on supply/demand
+- **Liquidity Management**: Add/remove liquidity with proportional shares
 
-## Security Considerations
+## Security Features
 
-The composer contracts validate that lzCompose calls only come from the LayerZero endpoint and that the source is the trusted Stargate contract. This prevents unauthorized contracts from triggering USDC transfers. The system includes emergency recovery functions for stuck tokens, accessible only by the contract owner. Always verify the source chain and endpoint IDs match expected values when setting up trusted remotes.
-
-## Extensibility
-
-The current implementation performs a simple transfer to the recipient, but the composer pattern allows for much more complex logic. Future enhancements could include automatic deposit into DeFi vaults, token swaps before delivery, batched transfers to multiple recipients, or conditional logic based on on-chain state. The composeMsg field in the sender can be expanded to include additional parameters for these advanced use cases.
-
-To add new functionality, modify the lzCompose function in UsdcComposer.sol after the basic transfer logic. The additionalData field decoded from the compose message can carry instructions for these extended operations.
+- **Composer Validation**: Only LayerZero endpoint can call lzCompose
+- **Source Verification**: Validates messages come from trusted Stargate
+- **Emergency Recovery**: Owner can recover stuck tokens
+- **Trading Limits**: Configurable maximum transaction and daily limits
+- **Reentrancy Protection**: All external calls protected
 
 ## Gas Optimization
 
-The contracts are compiled with Solidity 0.8.20 and optimizer enabled at 200 runs. The OptionsBuilder efficiently constructs LayerZero options to minimize calldata size. Consider adjusting COMPOSE_GAS_LIMIT and LZ_RECEIVE_GAS_LIMIT in Config.sol based on your specific use case and gas price conditions.
+- Compiled with Solidity 0.8.20, optimizer at 200 runs
+- Efficient message encoding with MessageCodec library
+- Optimized LayerZero options construction
+- Via-IR compilation for complex contracts
 
 ## Troubleshooting
 
-If bridges fail, check that the composer addresses are correctly set on both sender contracts, verify sufficient gas limits in Config.sol for the compose execution, ensure USDC allowances are properly set before bridging, and confirm the Stargate pool has sufficient liquidity for your transfer amount.
+Common issues and solutions:
 
-Monitor your transfers on LayerZero Scan using the transaction GUID returned from the bridge function.
+1. **Bridge Failure**: Verify composer addresses are set correctly on both chains
+2. **Insufficient Gas**: Adjust COMPOSE_GAS_LIMIT in Config.sol
+3. **Trading Reverts**: Check marketplace has sufficient liquidity
+4. **Minting Fails**: Ensure caller is authorized minter
+5. **High Slippage**: Increase minOutput parameters or reduce trade size
+
+Track transfers on [LayerZero Scan](https://layerzeroscan.com) using the returned GUID.
 
 ## License
 

@@ -2,17 +2,41 @@
 pragma solidity 0.8.20;
 
 library MessageCodec {
+    // Message types
+    uint8 constant MSG_TYPE_SIMPLE_TRANSFER = 1;
+    uint8 constant MSG_TYPE_TREASURY_SALE = 2;
+    uint8 constant MSG_TYPE_VAULT_DEPOSIT = 3;
+
     function encode(
         uint256 _amountLD,
         bytes memory _composeMsg
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            uint8(1), // MSG_TYPE_COMPOSE
+            uint8(MSG_TYPE_SIMPLE_TRANSFER),
             uint64(0), // nonce (placeholder)
             uint32(0), // srcEid (filled by Stargate)
             _amountLD,
             _composeMsg
         );
+    }
+
+    function encodeTreasurySale(
+        uint256 _amountLD,
+        address _receiver,
+        bytes memory _treasuryData
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint8(MSG_TYPE_TREASURY_SALE),
+            uint64(0), // nonce
+            uint32(0), // srcEid
+            _amountLD,
+            abi.encode(_receiver, _treasuryData)
+        );
+    }
+
+    function decodeMessageType(bytes memory _message) internal pure returns (uint8) {
+        require(_message.length >= 1, "MessageCodec: invalid message length");
+        return uint8(_message[0]);
     }
 
     function decodeAmountLD(bytes memory _message) internal pure returns (uint256) {

@@ -2,13 +2,13 @@
 pragma solidity 0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {UsdcComposer} from "../contracts/UsdcComposer.sol";
+import {CrossChainComposer} from "../contracts/CrossChainComposer.sol";
 import {MessageCodec} from "../contracts/libraries/MessageCodec.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockEndpoint} from "./mocks/MockEndpoint.sol";
 
-contract UsdcComposerTest is Test {
-    UsdcComposer public composer;
+contract CrossChainComposerTest is Test {
+    CrossChainComposer public composer;
     MockERC20 public usdc;
     MockEndpoint public endpoint;
     address public stargate;
@@ -26,7 +26,7 @@ contract UsdcComposerTest is Test {
         stargate = address(0x3333);
 
         // Deploy composer
-        composer = new UsdcComposer(
+        composer = new CrossChainComposer(
             address(endpoint),
             stargate,
             address(usdc)
@@ -88,7 +88,7 @@ contract UsdcComposerTest is Test {
 
         // Try to call from non-endpoint address
         vm.prank(alice);
-        vm.expectRevert(UsdcComposer.InvalidCaller.selector);
+        vm.expectRevert(CrossChainComposer.InvalidCaller.selector);
         composer.lzCompose(
             stargate,
             TEST_GUID,
@@ -111,7 +111,7 @@ contract UsdcComposerTest is Test {
 
         // Call from endpoint but with wrong source
         vm.prank(address(endpoint));
-        vm.expectRevert(UsdcComposer.InvalidSourceAddress.selector);
+        vm.expectRevert(CrossChainComposer.InvalidSourceAddress.selector);
         composer.lzCompose(
             alice, // wrong source
             TEST_GUID,
@@ -185,7 +185,7 @@ contract UsdcComposerTest is Test {
         );
 
         vm.prank(address(endpoint));
-        vm.expectRevert(UsdcComposer.InsufficientBalance.selector);
+        vm.expectRevert(CrossChainComposer.InsufficientBalance.selector);
         composer.lzCompose(
             stargate,
             TEST_GUID,

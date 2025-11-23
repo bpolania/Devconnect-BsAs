@@ -15,6 +15,8 @@ library Config {
     // Testnet (Sepolia)
     uint32 constant ETHEREUM_SEPOLIA_EID = 40161; // Ethereum Sepolia
     uint32 constant ARBITRUM_SEPOLIA_EID = 40231; // Arbitrum Sepolia
+    // Local
+    uint32 constant LOCAL_EID = 31337; // Local development
 
     // LayerZero Endpoints V2
     // Mainnet endpoints (same address on all chains)
@@ -50,24 +52,28 @@ library Config {
     function getEndpointId(uint256 chainId) internal pure returns (uint32) {
         if (chainId == 1) return ETHEREUM_EID;
         if (chainId == 42161) return ARBITRUM_EID;
+        if (chainId == 31337) return LOCAL_EID; // Local development
         revert("Config: unsupported chain");
     }
 
     function getEndpoint(uint256 chainId) internal pure returns (address) {
         if (chainId == 1) return ETHEREUM_ENDPOINT;
         if (chainId == 42161) return ARBITRUM_ENDPOINT;
+        if (chainId == 31337) return address(0); // Will be set by deploy script
         revert("Config: unsupported chain");
     }
 
     function getStargate(uint256 chainId) internal pure returns (address) {
         if (chainId == 1) return ETHEREUM_STARGATE;
         if (chainId == 42161) return ARBITRUM_STARGATE;
+        if (chainId == 31337) return address(0); // Will be set by deploy script
         revert("Config: unsupported chain");
     }
 
     function getUsdc(uint256 chainId) internal pure returns (address) {
         if (chainId == 1) return ETHEREUM_USDC;
         if (chainId == 42161) return ARBITRUM_USDC;
+        if (chainId == 31337) return address(0); // Will be set by deploy script
         revert("Config: unsupported chain");
     }
 }
