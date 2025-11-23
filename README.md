@@ -95,35 +95,176 @@ Update `contracts/Config.sol` with the latest addresses from:
 
 ## Deployment
 
-### Deploy Everything (Recommended)
+### Local Development
 
 ```bash
-# Deploy all contracts to local testnet
-forge script script/DeployAll.s.sol --rpc-url localhost --broadcast
+# Start local Anvil node
+anvil --accounts 3 --balance 10000
 
-# Deploy to Arbitrum (treasury + bridge infrastructure)
-forge script script/DeployAll.s.sol --rpc-url arbitrum --broadcast --verify
-
-# Deploy to Ethereum (bridge infrastructure only)
-forge script script/DeployAll.s.sol --rpc-url ethereum --broadcast --verify
+# Deploy all contracts locally
+forge script script/DeployAll.s.sol:DeployAll \
+  --rpc-url http://localhost:8545 \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --broadcast
 ```
 
-### Post-Deployment Setup
+### Testnet Deployment (Sepolia)
 
-1. **Configure Cross-Chain Connection**:
+#### Prerequisites
+1. **Get Testnet ETH**:
+   - Ethereum Sepolia: https://sepoliafaucet.com/
+   - Arbitrum Sepolia: https://faucets.chain.link/arbitrum-sepolia
+
+2. **Get Testnet USDC**:
+   - Ethereum Sepolia USDC: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+   - Arbitrum Sepolia USDC: `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`
+   - Use Circle's testnet faucet: https://faucet.circle.com/
+
+3. **Configure RPC URLs** in `.env`:
+   ```bash
+   ETH_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
+   ARBITRUM_RPC_URL=https://arbitrum-sepolia.infura.io/v3/YOUR_INFURA_KEY
+   ```
+
+#### Step 1: Deploy to Arbitrum Sepolia
 ```bash
-ARBITRUM_SENDER=0x... ETHEREUM_SENDER=0x... \
-ARBITRUM_COMPOSER=0x... ETHEREUM_COMPOSER=0x... \
-forge script script/DeployAll.s.sol:SetupCrossChain --rpc-url arbitrum --broadcast
+# Deploy treasury contracts and bridge infrastructure
+forge script script/DeployAll.s.sol:DeployAll \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ARBISCAN_API_KEY \
+  --chain-id 421614 \
+  -vvvv
+
+# Save the deployed addresses:
+# - CrossChainComposer: 0x...
+# - UsdcBridgeSender: 0x...
+# - TokenizedTreasury: 0x...
+# - TreasuryMarketplace: 0x...
+# - TreasuryBridgeInitiator: 0x...
 ```
 
-2. **Add Marketplace Liquidity**:
+#### Step 2: Deploy to Ethereum Sepolia
 ```bash
-TREASURY_ADDRESS=0x... MARKETPLACE_ADDRESS=0x... \
-USDC_ADDRESS=0x... TREASURY_LIQUIDITY_AMOUNT=1000000000000000000000 \
-USDC_LIQUIDITY_AMOUNT=1000000000000 \
-forge script script/DeployTreasury.s.sol:SetupTreasuryLiquidity --rpc-url arbitrum --broadcast
+# Deploy bridge infrastructure only (no treasury contracts)
+forge script script/DeployAll.s.sol:DeployAll \
+  --rpc-url $ETH_RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --chain-id 11155111 \
+  -vvvv
+
+# Save the deployed addresses:
+# - CrossChainComposer: 0x...
+# - UsdcBridgeSender: 0x...
 ```
+
+#### Step 3: Configure Cross-Chain Connection
+```bash
+# Set composer addresses on both chains
+# On Arbitrum Sepolia - point to Ethereum composer
+cast send <ARBITRUM_SENDER_ADDRESS> \
+  "setComposer(uint32,address)" \
+  40161 <ETHEREUM_COMPOSER_ADDRESS> \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# On Ethereum Sepolia - point to Arbitrum composer
+cast send <ETHEREUM_SENDER_ADDRESS> \
+  "setComposer(uint32,address)" \
+  40231 <ARBITRUM_COMPOSER_ADDRESS> \
+  --rpc-url $ETH_RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+#### Step 4: Initialize Treasury Market (Arbitrum only)
+```bash
+# Mint initial treasury supply
+cast send <TREASURY_ADDRESS> \
+  "mint(address,uint256)" \
+  $YOUR_ADDRESS 1000000000000000000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Approve marketplace for treasury tokens
+cast send <TREASURY_ADDRESS> \
+  "approve(address,uint256)" \
+  <MARKETPLACE_ADDRESS> 500000000000000000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Approve marketplace for USDC
+cast send <USDC_ADDRESS> \
+  "approve(address,uint256)" \
+  <MARKETPLACE_ADDRESS> 500000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Add liquidity to marketplace
+cast send <MARKETPLACE_ADDRESS> \
+  "addLiquidity(uint256,uint256)" \
+  100000000000000000000000 100000000000 \
+  --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+### Mainnet Deployment
+
+For mainnet deployment, follow the same steps but:
+1. Use mainnet RPC URLs and chain IDs (Ethereum: 1, Arbitrum: 42161)
+2. Ensure sufficient ETH for gas fees
+3. Use real USDC addresses from Config.sol
+4. Consider using a hardware wallet or multisig for deployment
+5. Test thoroughly on testnet first
+6. Audit contracts before mainnet deployment
+
+### Verification & Monitoring
+
+#### Verify Contracts on Block Explorers
+```bash
+# Verify on Arbiscan (Arbitrum Sepolia)
+forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> \
+  --chain-id 421614 \
+  --etherscan-api-key $ARBISCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(...)" ...)
+
+# Verify on Etherscan (Ethereum Sepolia)
+forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> \
+  --chain-id 11155111 \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(...)" ...)
+```
+
+#### Monitor Your Deployment
+1. **Track Bridge Transactions**:
+   - LayerZero Scan: https://testnet.layerzeroscan.com/
+   - Search by transaction GUID returned from bridge operations
+
+2. **Check Contract State**:
+   ```bash
+   # Check treasury token supply
+   cast call <TREASURY_ADDRESS> "totalSupply()" --rpc-url $ARBITRUM_RPC_URL | cast --to-dec
+
+   # Check marketplace liquidity
+   cast call <MARKETPLACE_ADDRESS> "treasuryReserve()" --rpc-url $ARBITRUM_RPC_URL | cast --to-dec
+   cast call <MARKETPLACE_ADDRESS> "usdcReserve()" --rpc-url $ARBITRUM_RPC_URL | cast --to-dec
+
+   # Check bridge sender composer settings
+   cast call <SENDER_ADDRESS> "composers(uint32)" 40161 --rpc-url $ARBITRUM_RPC_URL
+   ```
+
+3. **Test Bridge Operations**:
+   ```bash
+   # Quote bridge fee
+   cast call <SENDER_ADDRESS> \
+     "quoteBridge(uint32,uint256,address)" \
+     40161 1000000 <RECIPIENT_ADDRESS> \
+     --rpc-url $ARBITRUM_RPC_URL
+   ```
 
 ## Usage
 
