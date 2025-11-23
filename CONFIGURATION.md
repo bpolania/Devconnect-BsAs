@@ -33,16 +33,16 @@ Contains sensitive, user-specific data that must NEVER be committed to version c
 ## Why This Separation?
 
 **Config.sol** is for:
-- ✅ Contract addresses that everyone needs
-- ✅ Network IDs and protocol constants
-- ✅ Values that are safe to share publicly
-- ✅ Configuration that gets deployed on-chain
+- Contract addresses that everyone needs
+- Network IDs and protocol constants
+- Values that are safe to share publicly
+- Configuration that gets deployed on-chain
 
 **.env file** is for:
-- 🔒 Private keys (NEVER share these!)
-- 🔒 API keys for services
-- 🔒 Personal RPC endpoints with rate limits
-- 🔒 User-specific test parameters
+- Private keys (NEVER share these!)
+- API keys for services
+- Personal RPC endpoints with rate limits
+- User-specific test parameters
 
 ## Setup Instructions
 

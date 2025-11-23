@@ -42,10 +42,10 @@ contract DeployAll is Script {
             result = deployLocal(deployerAddress);
         } else if (chainId == 1 || chainId == 11155111) {
             // Ethereum mainnet or Sepolia
-            result = deployEthereum();
+            result = deployEthereum(deployerAddress);
         } else if (chainId == 42161 || chainId == 421614) {
             // Arbitrum One or Arbitrum Sepolia
-            result = deployArbitrum();
+            result = deployArbitrum(deployerAddress);
         } else {
             revert("Unsupported chain");
         }
@@ -160,7 +160,7 @@ contract DeployAll is Script {
         });
     }
 
-    function deployEthereum() internal returns (DeploymentResult memory) {
+    function deployEthereum(address deployerAddress) internal returns (DeploymentResult memory) {
         console2.log("\n=== Deploying on Ethereum ===");
 
         uint256 chainId = block.chainid;
@@ -197,12 +197,11 @@ contract DeployAll is Script {
         }
 
         // Deploy Flatcoin contracts
-        address deployer = msg.sender;
         SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
             "Flatcoin",
             "FLAT",
             endpoint,
-            deployer
+            deployerAddress
         );
         console2.log("SimpleFlatcoinOFT:", address(flatcoin));
 
@@ -231,7 +230,7 @@ contract DeployAll is Script {
         });
     }
 
-    function deployArbitrum() internal returns (DeploymentResult memory) {
+    function deployArbitrum(address deployerAddress) internal returns (DeploymentResult memory) {
         console2.log("\n=== Deploying on Arbitrum ===");
 
         uint256 chainId = block.chainid;
@@ -300,12 +299,11 @@ contract DeployAll is Script {
         }
 
         // Deploy Flatcoin contracts
-        address deployer = msg.sender;
         SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
             "Flatcoin",
             "FLAT",
             endpoint,
-            deployer
+            deployerAddress
         );
         console2.log("SimpleFlatcoinOFT:", address(flatcoin));
 
