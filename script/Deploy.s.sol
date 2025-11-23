@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {UsdcComposer} from "../contracts/UsdcComposer.sol";
+import {CrossChainComposer} from "../contracts/CrossChainComposer.sol";
 import {UsdcBridgeSender} from "../contracts/UsdcBridgeSender.sol";
 import {Config} from "../contracts/Config.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
@@ -51,12 +51,12 @@ contract Deploy is Script {
         console2.log("Mock Stargate deployed at:", address(stargate));
 
         // Deploy Composer
-        UsdcComposer composer = new UsdcComposer(
+        CrossChainComposer composer = new CrossChainComposer(
             address(endpoint),
             address(stargate),
             address(usdc)
         );
-        console2.log("UsdcComposer deployed at:", address(composer));
+        console2.log("CrossChainComposer deployed at:", address(composer));
 
         // Deploy Sender
         UsdcBridgeSender sender = new UsdcBridgeSender(
@@ -95,8 +95,8 @@ contract Deploy is Script {
         require(stargate != address(0), "Deploy: Update Stargate address in Config.sol");
 
         // Deploy Composer
-        UsdcComposer composer = new UsdcComposer(endpoint, stargate, usdc);
-        console2.log("UsdcComposer deployed at:", address(composer));
+        CrossChainComposer composer = new CrossChainComposer(endpoint, stargate, usdc);
+        console2.log("CrossChainComposer deployed at:", address(composer));
 
         // Deploy Sender
         UsdcBridgeSender sender = new UsdcBridgeSender(stargate, usdc, 1);
@@ -118,8 +118,8 @@ contract Deploy is Script {
         require(stargate != address(0), "Deploy: Update Stargate address in Config.sol");
 
         // Deploy Composer
-        UsdcComposer composer = new UsdcComposer(endpoint, stargate, usdc);
-        console2.log("UsdcComposer deployed at:", address(composer));
+        CrossChainComposer composer = new CrossChainComposer(endpoint, stargate, usdc);
+        console2.log("CrossChainComposer deployed at:", address(composer));
 
         // Deploy Sender
         UsdcBridgeSender sender = new UsdcBridgeSender(stargate, usdc, 42161);

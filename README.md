@@ -4,7 +4,7 @@ A production-oriented implementation of USDC bridging between Ethereum and Arbit
 
 ## Architecture Overview
 
-This project implements a composable cross-chain USDC bridge using three main components. The UsdcBridgeSender contract initiates bridge operations on the source chain, Stargate v2 handles the actual token bridging between chains, and the UsdcComposer contract on the destination chain receives composed messages and delivers the bridged USDC to the final recipient.
+This project implements a composable cross-chain USDC bridge using three main components. The UsdcBridgeSender contract initiates bridge operations on the source chain, Stargate v2 handles the actual token bridging between chains, and the CrossChainComposer contract on the destination chain receives composed messages and delivers the bridged USDC to the final recipient.
 
 The system uses LayerZero v2's compose functionality, which allows for programmable actions after bridging. When a user initiates a bridge, the sender contract packages both the USDC amount and the recipient's address into a composed message. Stargate bridges the tokens and triggers a composed call on the destination chain. The composer contract then decodes the message and transfers the USDC to the intended recipient.
 
@@ -25,7 +25,7 @@ This flow mirrors the Arbitrum to Ethereum process but in reverse. The user init
 ```
 contracts/
 ├── Config.sol                 # Network configurations and constants
-├── UsdcComposer.sol          # Composer contract for receiving bridged USDC
+├── CrossChainComposer.sol    # Composer contract for cross-chain operations
 ├── UsdcBridgeSender.sol      # Sender contract for initiating bridges
 ├── interfaces/               # LayerZero and Stargate interfaces
 │   ├── ILayerZero.sol
@@ -39,7 +39,7 @@ script/
 └── BridgeExample.s.sol       # Example bridge execution script
 
 test/
-├── UsdcComposer.t.sol        # Unit tests for composer
+├── CrossChainComposer.t.sol  # Unit tests for composer
 └── mocks/                    # Mock contracts for testing
 ```
 

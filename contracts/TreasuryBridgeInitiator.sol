@@ -13,7 +13,7 @@ import {Config} from "./Config.sol";
 /**
  * @title TreasuryBridgeInitiator
  * @notice Initiates treasury sales and bridges USDC with proper composer message types
- * @dev Deployed on Arbitrum to work with UsdcComposer on Ethereum
+ * @dev Deployed on Arbitrum to work with CrossChainComposer on Ethereum
  */
 contract TreasuryBridgeInitiator is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;

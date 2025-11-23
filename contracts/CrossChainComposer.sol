@@ -8,7 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract UsdcComposer is ILayerZeroComposer, Ownable, ReentrancyGuard {
+contract CrossChainComposer is ILayerZeroComposer, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     address public immutable endpoint;
@@ -51,9 +51,9 @@ contract UsdcComposer is ILayerZeroComposer, Ownable, ReentrancyGuard {
         address _stargate,
         address _usdc
     ) Ownable(msg.sender) {
-        require(_endpoint != address(0), "UsdcComposer: invalid endpoint");
-        require(_stargate != address(0), "UsdcComposer: invalid stargate");
-        require(_usdc != address(0), "UsdcComposer: invalid usdc");
+        require(_endpoint != address(0), "CrossChainComposer: invalid endpoint");
+        require(_stargate != address(0), "CrossChainComposer: invalid stargate");
+        require(_usdc != address(0), "CrossChainComposer: invalid usdc");
 
         endpoint = _endpoint;
         stargate = _stargate;
