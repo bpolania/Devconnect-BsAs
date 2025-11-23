@@ -5,7 +5,6 @@ import {Script, console2} from "forge-std/Script.sol";
 import {TokenizedTreasury} from "../contracts/TokenizedTreasury.sol";
 import {TreasuryMarketplace} from "../contracts/TreasuryMarketplace.sol";
 import {TreasuryBridgeInitiator} from "../contracts/TreasuryBridgeInitiator.sol";
-import {UsdcBridgeSender} from "../contracts/UsdcBridgeSender.sol";
 import {Config} from "../contracts/Config.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
