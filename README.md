@@ -1,23 +1,45 @@
-# Cross-Chain Treasury and USDC Bridge
+# Cross-Chain DeFi Suite: Treasury, Flatcoin, and USDC Bridge
 
-A production-ready implementation of tokenized treasury notes on Arbitrum with cross-chain USDC bridging to Ethereum using LayerZero v2 and Stargate v2's Composer pattern.
+A comprehensive DeFi platform featuring tokenized treasury notes, an inflation-pegged stablecoin (Flatcoin), and cross-chain USDC bridging using LayerZero v2 and Stargate v2.
 
 ## Overview
 
-This project enables users to:
-1. **Trade tokenized US Treasury notes** on Arbitrum through an automated market maker
-2. **Sell treasury tokens for USDC** with instant liquidity
-3. **Bridge USDC cross-chain** between Arbitrum and Ethereum seamlessly
-4. **Compose complex operations** like selling treasuries and bridging in one transaction
+This project provides three integrated DeFi systems:
+
+### 1. Treasury System
+- **Trade tokenized US Treasury notes** on Arbitrum through an automated market maker
+- **Sell treasury tokens for USDC** with instant liquidity
+- **Bridge proceeds cross-chain** between Arbitrum and Ethereum
+
+### 2. Flatcoin System ($FLAT)
+- **Inflation-pegged stablecoin** that maintains purchasing power
+- **Position-based ownership** with interest accrual
+- **Order book trading** with spot and future positions
+- **Tax mechanism** that funds interest payments to holders
+
+### 3. Cross-Chain Infrastructure
+- **USDC bridging** between Ethereum and Arbitrum via Stargate v2
+- **Composed operations** using LayerZero's Composer pattern
+- **Unified deployment** across multiple chains
 
 ## Architecture
 
 ### Core Components
 
-- **TokenizedTreasury**: ERC20 representation of US Treasury notes with compliance features (blacklisting, pausing, authorized minting)
+#### Treasury System
+- **TokenizedTreasury**: ERC20 representation of US Treasury notes with compliance features
 - **TreasuryMarketplace**: Constant product AMM for trading treasury tokens against USDC
-- **TreasuryBridgeInitiator**: Orchestrates treasury sales and initiates cross-chain USDC bridging on Arbitrum
-- **CrossChainComposer**: Receives and processes composed messages on the destination chain
+- **TreasuryBridgeInitiator**: Orchestrates treasury sales and cross-chain bridging
+
+#### Flatcoin System
+- **SimpleFlatcoinOFT**: Omnichain fungible token with cross-chain capabilities
+- **FlatcoinCore**: Position management, order book, and economic mechanics
+  - 2% annual interest rate matching inflation
+  - Tax formula: `(principal - earned_interest) * interest_rate`
+  - 0.3% spot trading fees, 0.1% position transfer fees
+
+#### Bridge Infrastructure
+- **CrossChainComposer**: Receives and processes composed messages on destination chains
 - **UsdcBridgeSender**: Initiates USDC bridging operations via Stargate v2
 
 ### Message Types
@@ -37,6 +59,9 @@ contracts/
 ├── TreasuryBridgeInitiator.sol   # Orchestrates sales and bridging
 ├── CrossChainComposer.sol        # Processes composed messages
 ├── UsdcBridgeSender.sol          # Initiates cross-chain bridging
+├── flatcoin/
+│   ├── SimpleFlatcoinOFT.sol    # Flatcoin token with OFT capabilities
+│   └── FlatcoinCore.sol         # Position management and economics
 ├── interfaces/                   # External protocol interfaces
 │   ├── ILayerZero.sol
 │   └── IStargate.sol
@@ -45,7 +70,8 @@ contracts/
     └── OptionsBuilder.sol        # LayerZero options construction
 
 script/
-├── DeployAll.s.sol               # Comprehensive deployment script
+├── DeployAll.s.sol               # Deploys all systems
+├── DeployFlatcoin.s.sol          # Flatcoin-specific deployment
 ├── DeployTreasury.s.sol          # Treasury-specific deployment
 ├── Deploy.s.sol                  # Bridge infrastructure deployment
 └── BridgeExample.s.sol           # Example usage scripts
@@ -53,6 +79,7 @@ script/
 test/
 ├── TokenizedTreasury.t.sol       # Treasury and marketplace tests
 ├── CrossChainComposer.t.sol      # Composer pattern tests
+├── FlatcoinCore.t.sol            # Flatcoin system tests
 └── mocks/                        # Mock contracts for testing
 ```
 
@@ -99,14 +126,21 @@ Update `contracts/Config.sol` with the latest addresses from:
 
 ```bash
 # Start local Anvil node
-anvil --accounts 3 --balance 10000
+anvil
 
-# Deploy all contracts locally
+# Deploy all contracts locally (treasury, flatcoin, and bridge)
 forge script script/DeployAll.s.sol:DeployAll \
   --rpc-url http://localhost:8545 \
   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
   --broadcast
 ```
+
+Local deployment includes:
+- Mock tokens (USDC, USDT)
+- Mock LayerZero endpoint and Stargate
+- All treasury contracts with 1M token / 100k USDC liquidity
+- Flatcoin system with 100k USDT reserves
+- Cross-chain infrastructure fully configured
 
 ### Testnet Deployment (Sepolia)
 
@@ -128,39 +162,44 @@ forge script script/DeployAll.s.sol:DeployAll \
 
 #### Step 1: Deploy to Arbitrum Sepolia
 ```bash
-# Deploy treasury contracts and bridge infrastructure
+# Deploy all contracts (treasury, flatcoin, bridge)
 forge script script/DeployAll.s.sol:DeployAll \
   --rpc-url $ARBITRUM_RPC_URL \
   --private-key $PRIVATE_KEY \
   --broadcast \
   --verify \
   --etherscan-api-key $ARBISCAN_API_KEY \
-  --chain-id 421614 \
   -vvvv
 
-# Save the deployed addresses:
-# - CrossChainComposer: 0x...
-# - UsdcBridgeSender: 0x...
-# - TokenizedTreasury: 0x...
-# - TreasuryMarketplace: 0x...
-# - TreasuryBridgeInitiator: 0x...
+# Deployed contracts:
+# Treasury System:
+#   - TokenizedTreasury: 0x...
+#   - TreasuryMarketplace: 0x...
+#   - TreasuryBridgeInitiator: 0x...
+# Flatcoin System:
+#   - SimpleFlatcoinOFT: 0x...
+#   - FlatcoinCore: 0x...
+# Bridge Infrastructure:
+#   - CrossChainComposer: 0x...
+#   - UsdcBridgeSender: 0x...
 ```
 
 #### Step 2: Deploy to Ethereum Sepolia
 ```bash
-# Deploy bridge infrastructure only (no treasury contracts)
+# Deploy bridge and flatcoin contracts (no treasury)
 forge script script/DeployAll.s.sol:DeployAll \
   --rpc-url $ETH_RPC_URL \
   --private-key $PRIVATE_KEY \
   --broadcast \
   --verify \
   --etherscan-api-key $ETHERSCAN_API_KEY \
-  --chain-id 11155111 \
   -vvvv
 
-# Save the deployed addresses:
+# Deployed contracts:
 # - CrossChainComposer: 0x...
 # - UsdcBridgeSender: 0x...
+# - SimpleFlatcoinOFT: 0x...
+# - FlatcoinCore: 0x...
 ```
 
 #### Step 3: Configure Cross-Chain Connection
@@ -181,7 +220,7 @@ cast send <ETHEREUM_SENDER_ADDRESS> \
   --private-key $PRIVATE_KEY
 ```
 
-#### Step 4: Initialize Treasury Market (Arbitrum only)
+#### Step 4: Initialize Markets
 ```bash
 # Mint initial treasury supply
 cast send <TREASURY_ADDRESS> \
@@ -209,6 +248,29 @@ cast send <MARKETPLACE_ADDRESS> \
   "addLiquidity(uint256,uint256)" \
   100000000000000000000000 100000000000 \
   --rpc-url $ARBITRUM_RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+##### Initialize Flatcoin (All chains)
+```bash
+# Add USDT reserves to FlatcoinCore
+cast send <USDT_ADDRESS> \
+  "approve(address,uint256)" \
+  <FLATCOIN_CORE_ADDRESS> 100000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+cast send <FLATCOIN_CORE_ADDRESS> \
+  "addReserves(uint256)" \
+  100000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Configure cross-chain peers for Flatcoin
+cast send <FLATCOIN_OFT_ADDRESS> \
+  "setPeer(uint32,address)" \
+  <DESTINATION_CHAIN_ID> <PEER_FLATCOIN_ADDRESS> \
+  --rpc-url $RPC_URL \
   --private-key $PRIVATE_KEY
 ```
 
@@ -268,6 +330,32 @@ forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> \
 
 ## Usage
 
+### Flatcoin Operations
+
+```solidity
+// Buy FLAT tokens spot (1:1 with USDT)
+uint256 positionId = flatcoinCore.buySpot(usdtAmount);
+
+// Sell FLAT tokens (receive USDT + interest - tax)
+flatcoinCore.sellSpot(positionId);
+
+// Place buy/sell orders
+uint256 orderId = flatcoinCore.placeBuyOrder(amount, price);
+flatcoinCore.placeSellOrder(amount, price);
+
+// Fill orders
+flatcoinCore.fillOrder(orderId, amount);
+
+// Buy future position
+flatcoinCore.buyFuture(amount, futurePrice);
+
+// Transfer position (0.1% fee)
+flatcoinCore.transferPosition(positionId, newOwner);
+
+// Cross-chain transfer
+flatcoin.sendToChain{value: bridgeFee}(dstChainId, recipient, amount);
+```
+
 ### Trading Treasury Tokens
 
 ```solidity
@@ -308,14 +396,16 @@ forge script script/BridgeExample.s.sol --rpc-url arbitrum --broadcast
 ## Testing
 
 ```bash
-# Run all tests
+# Run all tests (30 tests across all systems)
 forge test
 
 # Run with gas reporting
 forge test --gas-report
 
-# Run specific test suite
-forge test --match-contract TokenizedTreasury -vvv
+# Run specific test suites
+forge test --match-contract TokenizedTreasury -vvv  # 11 tests
+forge test --match-contract CrossChainComposer -vvv # 7 tests
+forge test --match-contract FlatcoinCore -vvv       # 12 tests
 ```
 
 ## Treasury Token Features
@@ -339,6 +429,20 @@ The TreasuryMarketplace uses a constant product AMM (x * y = k):
 - **Price Discovery**: Automatic price adjustment based on supply/demand
 - **Liquidity Management**: Add/remove liquidity with proportional shares
 
+## Flatcoin Mechanics
+
+### Economic Model
+- **Interest Rate**: 2% annual (configurable by owner)
+- **Tax Formula**: `(principal - earned_interest) * interest_rate`
+- **Break-even**: ~1 year holding period (interest overcomes tax)
+- **Fees**: 0.3% on spot trades, 0.1% on position transfers
+
+### Position System
+- Each buy creates a unique position NFT
+- Positions track principal, open time, and type (spot/future)
+- Interest accrues based on holding duration
+- Positions are transferable with fees
+
 ## Security Features
 
 - **Composer Validation**: Only LayerZero endpoint can call lzCompose
@@ -346,6 +450,7 @@ The TreasuryMarketplace uses a constant product AMM (x * y = k):
 - **Emergency Recovery**: Owner can recover stuck tokens
 - **Trading Limits**: Configurable maximum transaction and daily limits
 - **Reentrancy Protection**: All external calls protected
+- **Position Ownership**: Only position owners can sell or transfer
 
 ## Gas Optimization
 
