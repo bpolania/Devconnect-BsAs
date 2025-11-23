@@ -8,10 +8,11 @@ import {TokenizedTreasury} from "../contracts/TokenizedTreasury.sol";
 import {TreasuryMarketplace} from "../contracts/TreasuryMarketplace.sol";
 import {TreasuryBridgeInitiator} from "../contracts/TreasuryBridgeInitiator.sol";
 import {Config} from "../contracts/Config.sol";
+import {SimpleFlatcoinOFT} from "../contracts/flatcoin/SimpleFlatcoinOFT.sol";
+import {FlatcoinCore} from "../contracts/flatcoin/FlatcoinCore.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
 import {MockEndpoint} from "../test/mocks/MockEndpoint.sol";
 import {MockStargate} from "../test/mocks/MockStargate.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DeployAll is Script {
     struct DeploymentResult {
@@ -20,7 +21,10 @@ contract DeployAll is Script {
         address tokenizedTreasury;
         address treasuryMarketplace;
         address treasuryBridgeInitiator;
+        address simpleFlatcoinOFT;
+        address flatcoinCore;
         address usdc;
+        address usdt;
     }
 
     function run() external returns (DeploymentResult memory) {
@@ -111,9 +115,36 @@ contract DeployAll is Script {
         endpoint.setStargate(address(stargate));
         sender.setComposer(Config.ETHEREUM_EID, address(composer));
 
+        // Deploy mock USDT for flatcoin
+        MockERC20 usdt = new MockERC20("Tether USD", "USDT", 6);
+        console2.log("Mock USDT:", address(usdt));
+
+        // Deploy Flatcoin contracts
+        SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
+            "Flatcoin",
+            "FLAT",
+            address(endpoint),
+            msg.sender
+        );
+        console2.log("SimpleFlatcoinOFT:", address(flatcoin));
+
+        FlatcoinCore flatcoinCore = new FlatcoinCore(
+            address(flatcoin),
+            address(usdt)
+        );
+        console2.log("FlatcoinCore:", address(flatcoinCore));
+
+        // Configure flatcoin
+        flatcoin.setCoreContract(address(flatcoinCore));
+
         // Setup initial liquidity for testing
         usdc.mint(msg.sender, 10000000 * 10**6); // 10M USDC
+        usdt.mint(msg.sender, 10000000 * 10**6); // 10M USDT
         treasury.mint(msg.sender, 1000000 * 10**18); // 1M treasury tokens
+
+        // Add initial reserves to flatcoin
+        usdt.approve(address(flatcoinCore), 100000 * 10**6);
+        flatcoinCore.addReserves(100000 * 10**6); // 100k USDT reserves
 
         return DeploymentResult({
             crossChainComposer: address(composer),
@@ -121,7 +152,10 @@ contract DeployAll is Script {
             tokenizedTreasury: address(treasury),
             treasuryMarketplace: address(marketplace),
             treasuryBridgeInitiator: address(initiator),
-            usdc: address(usdc)
+            simpleFlatcoinOFT: address(flatcoin),
+            flatcoinCore: address(flatcoinCore),
+            usdc: address(usdc),
+            usdt: address(usdt)
         });
     }
 
@@ -152,6 +186,33 @@ contract DeployAll is Script {
         );
         console2.log("UsdcBridgeSender:", address(sender));
 
+        // Deploy USDT for flatcoin (testnet only)
+        address usdt = usdc; // On mainnet, would use actual USDT address
+        if (chainId == 11155111) {
+            // Deploy mock USDT on testnet
+            MockERC20 mockUsdt = new MockERC20("Tether USD", "USDT", 6);
+            usdt = address(mockUsdt);
+            console2.log("Mock USDT:", usdt);
+        }
+
+        // Deploy Flatcoin contracts
+        SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
+            "Flatcoin",
+            "FLAT",
+            endpoint,
+            msg.sender
+        );
+        console2.log("SimpleFlatcoinOFT:", address(flatcoin));
+
+        FlatcoinCore flatcoinCore = new FlatcoinCore(
+            address(flatcoin),
+            usdt
+        );
+        console2.log("FlatcoinCore:", address(flatcoinCore));
+
+        // Configure flatcoin
+        flatcoin.setCoreContract(address(flatcoinCore));
+
         // Note: Treasury contracts are only deployed on Arbitrum
         console2.log("\nNote: Treasury contracts should be deployed on Arbitrum");
 
@@ -161,7 +222,10 @@ contract DeployAll is Script {
             tokenizedTreasury: address(0),
             treasuryMarketplace: address(0),
             treasuryBridgeInitiator: address(0),
-            usdc: usdc
+            simpleFlatcoinOFT: address(flatcoin),
+            flatcoinCore: address(flatcoinCore),
+            usdc: usdc,
+            usdt: usdt
         });
     }
 
@@ -224,13 +288,43 @@ contract DeployAll is Script {
             10000000 * 10**6  // 10M USDC daily limit
         );
 
+        // Deploy USDT for flatcoin (testnet only)
+        address usdt = usdc; // On mainnet, would use actual USDT address
+        if (chainId == 421614) {
+            // Deploy mock USDT on testnet
+            MockERC20 mockUsdt = new MockERC20("Tether USD", "USDT", 6);
+            usdt = address(mockUsdt);
+            console2.log("Mock USDT:", usdt);
+        }
+
+        // Deploy Flatcoin contracts
+        SimpleFlatcoinOFT flatcoin = new SimpleFlatcoinOFT(
+            "Flatcoin",
+            "FLAT",
+            endpoint,
+            msg.sender
+        );
+        console2.log("SimpleFlatcoinOFT:", address(flatcoin));
+
+        FlatcoinCore flatcoinCore = new FlatcoinCore(
+            address(flatcoin),
+            usdt
+        );
+        console2.log("FlatcoinCore:", address(flatcoinCore));
+
+        // Configure flatcoin
+        flatcoin.setCoreContract(address(flatcoinCore));
+
         return DeploymentResult({
             crossChainComposer: address(composer),
             usdcBridgeSender: address(sender),
             tokenizedTreasury: address(treasury),
             treasuryMarketplace: address(marketplace),
             treasuryBridgeInitiator: address(initiator),
-            usdc: usdc
+            simpleFlatcoinOFT: address(flatcoin),
+            flatcoinCore: address(flatcoinCore),
+            usdc: usdc,
+            usdt: usdt
         });
     }
 
@@ -246,11 +340,19 @@ contract DeployAll is Script {
             console2.log("TreasuryBridgeInitiator:", result.treasuryBridgeInitiator);
         }
 
+        if (result.simpleFlatcoinOFT != address(0)) {
+            console2.log("SimpleFlatcoinOFT:", result.simpleFlatcoinOFT);
+            console2.log("FlatcoinCore:", result.flatcoinCore);
+            console2.log("USDT:", result.usdt);
+        }
+
         console2.log("\n=== Next Steps ===");
         console2.log("1. Set composer addresses on both chains");
         console2.log("2. Add liquidity to marketplace (if on Arbitrum)");
-        console2.log("3. Configure authorized minters");
-        console2.log("4. Verify contracts on block explorer");
+        console2.log("3. Configure authorized minters for treasury tokens");
+        console2.log("4. Add reserves to flatcoin core contract");
+        console2.log("5. Configure flatcoin peers for cross-chain transfers");
+        console2.log("6. Verify contracts on block explorer");
     }
 }
 
