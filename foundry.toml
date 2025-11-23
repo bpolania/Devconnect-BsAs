@@ -10,6 +10,11 @@ test = "test"
 script = "script"
 broadcast = "broadcast"
 cache_path = "cache"
+remappings = [
+    "@layerzerolabs/=lib/LayerZero-v2/packages/",
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/"
+]
 
 [rpc_endpoints]
 ethereum = "${ETH_RPC_URL}"
